@@ -31,6 +31,13 @@ que tem o salto de terça na corda Si, **uma forma decorada aqui vale igual em
 qualquer par de cordas**. O app usa isso: depois de acertar um intervalo, ele
 mostra o deslocamento ("1 corda acima, mesma casa") que serve no braço inteiro.
 
+## Identidade
+
+A mesma do [iuri.io](https://iuri.io): JetBrains Mono, fundo `#0B0B0C`, verde
+`#9FE870` como única cor viva, canto reto, borda de 1px, rótulo em caixa alta e
+título em prompt de terminal. Os tokens são cópia de `src/styles/global.css` do
+site; a fonte vem embutida (subset latino) porque o app tem que abrir offline.
+
 ## Som
 
 Corda pinçada por Karplus–Strong, gerada na hora em Web Audio — sem arquivo de

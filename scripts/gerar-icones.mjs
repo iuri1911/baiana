@@ -43,23 +43,23 @@ function desenhar(tamanho) {
   }
 
   // fundo cheio: ícone maskable pode ser recortado em círculo
-  retangulo(0, 0, N, N, cor('#1b120c'))
+  retangulo(0, 0, N, N, cor('#0b0b0c'))
   // escala
-  retangulo(N * 0.16, 0, N * 0.84, N, cor('#35241a'))
+  retangulo(N * 0.16, 0, N * 0.84, N, cor('#101011'))
   // pestana
-  retangulo(N * 0.16, N * 0.1, N * 0.84, N * 0.14, cor('#e8e2d4'))
+  retangulo(N * 0.16, N * 0.1, N * 0.84, N * 0.14, cor('#edede8'))
   // trastes
   for (const t of [0.36, 0.58, 0.78, 0.95]) {
-    retangulo(N * 0.16, N * t, N * 0.84, N * (t + 0.012), cor('#9c968a'))
+    retangulo(N * 0.16, N * t, N * 0.84, N * (t + 0.012), cor('#2a2a26'))
   }
   // cordas, mais grossas do grave para o agudo
   for (let i = 0; i < 5; i++) {
     const x = N * (0.22 + i * 0.14)
     const w = N * (0.016 - i * 0.002)
-    retangulo(x - w / 2, 0, x + w / 2, N, cor('#d8cdb8'))
+    retangulo(x - w / 2, 0, x + w / 2, N, cor('#8b8b83'))
   }
   // a nota
-  circulo(N * 0.5, N * 0.47, N * 0.115, cor('#e0a34a'))
+  circulo(N * 0.5, N * 0.47, N * 0.115, cor('#9fe870'))
 
   // reduz o supersample
   const saida = Buffer.alloc(tamanho * tamanho * 3)

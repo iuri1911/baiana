@@ -408,7 +408,10 @@ function Enunciado({
     return (
       <div className={`pergunta ${status}`}>
         <span className="pergunta__rotulo">Onde está</span>
-        <strong className="pergunta__nota">{pitchClassName(q.pc, nameOpts)}</strong>
+        <strong className="pergunta__nota">
+          {pitchClassName(q.pc, nameOpts)}
+          {fase === 'perguntando' && <span className="cursor" aria-hidden />}
+        </strong>
         {q.posicoes.length > 1 && acertadas < q.posicoes.length && (
           <span className="pergunta__extra">
             {acertadas > 0 ? `${acertadas} de ${q.posicoes.length}` : `${q.posicoes.length} lugares na janela`}
@@ -424,7 +427,9 @@ function Enunciado({
   if (q.tipo === 'nomear') {
     return (
       <div className={`pergunta ${status}`}>
-        <span className="pergunta__rotulo">Que nota é essa?</span>
+        <span className="pergunta__rotulo">
+          Que nota é essa? {fase === 'perguntando' && <span className="cursor" aria-hidden />}
+        </span>
         {fase !== 'perguntando' && (
           <strong className="pergunta__nota">{noteName(q.midi, { ...nameOpts, octave: true })}</strong>
         )}

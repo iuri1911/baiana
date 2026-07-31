@@ -14,11 +14,13 @@ export interface Settings {
   markers: number[]
   lang: NoteLang
   accidental: Accidental
-  /** Corda grave em cima (horizontal) / à esquerda (vertical). */
+  /** Corda grave do lado de cá: embaixo no deitado, à esquerda no em pé. */
   lowFirst: boolean
   orientation: 'auto' | Orientation
   zone: Zone
   som: boolean
+  /** Deixar a nota anterior soando em vez de abafar quando toca outra. */
+  sustentar: boolean
   /** Ja passou pela conferencia de oitava. */
   calibrado: boolean
 }
@@ -36,6 +38,7 @@ export const PADRAO: Settings = {
   orientation: 'auto',
   zone: { from: 0, to: 7 },
   som: true,
+  sustentar: false,
   calibrado: false,
 }
 

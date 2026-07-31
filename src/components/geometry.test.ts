@@ -60,6 +60,22 @@ describe('geometria do braço', () => {
     expect(invertido.stringAt(0)).toBeGreaterThan(invertido.stringAt(4))
   })
 
+  it('o Dó fica embaixo no braço deitado — é a corda mais perto de quem olha', () => {
+    const deitado = layout({ ...base, zone: { from: 0, to: 7 }, orientation: 'horizontal' })
+    // no deitado o eixo transversal é o y da tela, e y maior é mais embaixo
+    expect(deitado.pt(10, deitado.stringAt(0)).y).toBeGreaterThan(deitado.pt(10, deitado.stringAt(4)).y)
+  })
+
+  it('em pé e deitado são a mesma vista girada: grave à esquerda vira grave embaixo', () => {
+    const emPe = layout({ ...base, zone: { from: 0, to: 7 }, orientation: 'vertical' })
+    const deitado = layout({ ...base, zone: { from: 0, to: 7 }, orientation: 'horizontal' })
+    const ordemEmPe = [0, 1, 2, 3, 4].map((s) => emPe.stringAt(s))
+    const ordemDeitado = [0, 1, 2, 3, 4].map((s) => deitado.stringAt(s))
+    // girar 90° no sentido do relógio troca o sentido do eixo transversal
+    expect(ordemEmPe.map((v, i, a) => v < (a[i + 1] ?? Infinity))).toEqual([true, true, true, true, true])
+    expect(ordemDeitado.map((v, i, a) => v > (a[i + 1] ?? -Infinity))).toEqual([true, true, true, true, true])
+  })
+
   it('aguenta tela de tamanho zero antes do primeiro layout', () => {
     const l = layout({ ...base, width: 0, height: 0, zone: { from: 0, to: 7 }, orientation: 'vertical' })
     expect(Number.isFinite(l.step)).toBe(true)

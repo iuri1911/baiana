@@ -145,12 +145,18 @@ export function SettingsView() {
           onChange={(orientation) => set({ orientation })}
         />
         <Alternar
-          titulo="Corda grave em cima"
-          dica="como você vê o braço olhando de cima; desligue para inverter"
+          titulo="Corda grave do lado de cá"
+          dica="embaixo no braço deitado, à esquerda no braço em pé — como você vê o instrumento; desligue para espelhar"
           valor={cfg.lowFirst}
           onChange={(lowFirst) => set({ lowFirst })}
         />
         <Alternar titulo="Som" valor={cfg.som} onChange={(som) => set({ som })} />
+        <Alternar
+          titulo="Deixar as notas soando"
+          dica="por padrão a nota nova abafa a anterior, como a mão faz no braço"
+          valor={cfg.sustentar}
+          onChange={(sustentar) => set({ sustentar })}
+        />
       </Painel>
 
       <Painel>

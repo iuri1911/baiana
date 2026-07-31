@@ -16,7 +16,7 @@ export interface LayoutInput {
   width: number
   height: number
   orientation: Orientation
-  /** Corda grave em cima (horizontal) ou à esquerda (vertical). */
+  /** Corda grave embaixo (deitado) ou à esquerda (em pé) — o padrão. */
   lowFirst: boolean
 }
 
@@ -96,7 +96,15 @@ export function layout({ inst, zone, width, height, orientation, lowFirst }: Lay
       const [a, b] = cellSpan(fret)
       return (a + b) / 2
     },
-    stringAt: (index) => edge + (lowFirst ? index : nStrings - 1 - index) * step,
+    // O braco deitado e o braco em pe girado 90° no sentido do relogio, e nessa
+    // volta o que estava em cima vai para a direita. Por isso a mesma opcao tem
+    // que inverter entre as duas: com `lowFirst`, a corda grave fica embaixo no
+    // deitado e a esquerda no em pe — que e como voce ve o braco de verdade,
+    // com a corda mais grave do lado de ca.
+    stringAt: (index) => {
+      const zeroNoComeco = vertical ? lowFirst : !lowFirst
+      return edge + (zeroNoComeco ? index : nStrings - 1 - index) * step
+    },
     pt: (a, c) => (vertical ? { x: c, y: a } : { x: a, y: c }),
   }
 }

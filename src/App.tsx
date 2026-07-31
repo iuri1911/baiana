@@ -5,7 +5,7 @@ import { ShapesView } from './features/ShapesView'
 import { ProgressView } from './features/ProgressView'
 import { SettingsView } from './features/SettingsView'
 import { Calibration } from './features/Calibration'
-import { unlockAudio } from './audio/engine'
+import { setCorteAutomatico, unlockAudio } from './audio/engine'
 import { useSettings } from './store/settings'
 
 type Aba = 'braco' | 'treino' | 'formas' | 'progresso' | 'ajustes'
@@ -28,6 +28,8 @@ export default function App() {
     window.addEventListener('pointerdown', soltar, { once: true })
     return () => window.removeEventListener('pointerdown', soltar)
   }, [])
+
+  useEffect(() => setCorteAutomatico(!cfg.sustentar), [cfg.sustentar])
 
   if (!cfg.calibrado) return <Calibration onPronto={() => setAba('braco')} />
 

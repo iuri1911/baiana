@@ -10,12 +10,17 @@ import { useOrientation, useSettings } from '../store/settings'
 import { useProgress } from '../store/progress'
 import { pluck } from '../audio/engine'
 
-/** Vermelho quando erra, verde quando acerta; mais opaco quanto mais respostas. */
+/**
+ * Do vermelho de erro ate o verde da marca (#9FE870 ≈ 92°), passando por
+ * amarelo. Quanto mais respostas naquela casa, mais firme a cor.
+ */
 function cor(stat: PosStat): string {
   const a = accuracy(stat)
-  const matiz = 4 + a * 136
   const forca = Math.min(1, stat.seen / 6)
-  return `hsl(${matiz} 62% ${28 + forca * 18}% / ${0.45 + forca * 0.55})`
+  const matiz = 10 + a * 82
+  const sat = 60 + a * 13
+  const luz = 42 + a * 16
+  return `hsl(${matiz} ${sat}% ${luz}% / ${0.5 + forca * 0.5})`
 }
 
 export function ProgressView() {

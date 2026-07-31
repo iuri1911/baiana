@@ -11,7 +11,12 @@ let ctx: AudioContext | null = null
 let master: GainNode | null = null
 const cache = new Map<number, AudioBuffer>()
 const CACHE_MAX = 48
-let live: AudioBufferSourceNode[] = []
+
+interface Voz {
+  src: AudioBufferSourceNode
+  gain: GainNode
+}
+let live: Voz[] = []
 
 /**
  * Precisa ser chamado de dentro de um gesto do usuario: no iOS (e no Chrome
@@ -84,43 +89,69 @@ export interface PluckOptions {
   /** Segundos a partir de agora. */
   delay?: number
   gain?: number
+  /** Cortar o que estiver soando antes de tocar. */
+  corta?: boolean
+}
+
+/**
+ * Corda soa ~2 s. Tocando o braco rapido, uma nota fica por cima da outra e
+ * vira caldo: o padrao e a nota nova abafar a anterior, como a mao faz. Quem
+ * quiser o contrario liga "deixar as notas soando" nos ajustes.
+ */
+let cortarAoTocar = true
+
+export function setCorteAutomatico(corta: boolean): void {
+  cortarAoTocar = corta
+}
+
+/** Abafa o que esta soando com um rabinho de fade, para nao estalar. */
+export function silenciar(fade = 0.05): void {
+  if (!ctx) return
+  const agora = ctx.currentTime
+  for (const voz of live) {
+    try {
+      voz.gain.gain.cancelScheduledValues(agora)
+      voz.gain.gain.setValueAtTime(voz.gain.gain.value, agora)
+      voz.gain.gain.linearRampToValueAtTime(0, agora + fade)
+      voz.src.stop(agora + fade)
+    } catch {
+      // fonte que ja terminou nao aceita stop; nada a fazer
+    }
+  }
+  live = []
 }
 
 export function pluck(midi: number, opts: PluckOptions = {}): void {
   unlockAudio()
   if (!ctx || !master) return
-  const { delay = 0, gain = 1 } = opts
+  const { delay = 0, gain = 1, corta = cortarAoTocar } = opts
+  if (corta) silenciar()
   const src = ctx.createBufferSource()
   src.buffer = bufferFor(ctx, midi)
   const g = ctx.createGain()
   g.gain.value = gain
   src.connect(g).connect(master)
   src.start(ctx.currentTime + delay)
-  live.push(src)
+  const voz = { src, gain: g }
+  live.push(voz)
   src.onended = () => {
-    live = live.filter((s) => s !== src)
+    live = live.filter((v) => v !== voz)
   }
 }
 
 /** Toca uma sequencia no andamento pedido. Devolve a duracao total em ms. */
 export function pluckSequence(midis: number[], bpm = 90): number {
+  silenciar()
   const passo = 60 / bpm
-  midis.forEach((m, i) => pluck(m, { delay: i * passo }))
+  // as notas da sequencia ja estao agendadas: uma nao pode cortar a outra
+  midis.forEach((m, i) => pluck(m, { delay: i * passo, corta: false }))
   return midis.length * passo * 1000
 }
 
 /** Acorde: tudo junto, com um fio de arpejo para nao virar bloco. */
 export function strum(midis: number[], espalhar = 0.02): void {
-  midis.forEach((m, i) => pluck(m, { delay: i * espalhar, gain: 0.8 }))
+  silenciar()
+  midis.forEach((m, i) => pluck(m, { delay: i * espalhar, gain: 0.8, corta: false }))
 }
 
-export function stopAll(): void {
-  for (const src of live) {
-    try {
-      src.stop()
-    } catch {
-      // ja terminou sozinho
-    }
-  }
-  live = []
-}
+export const stopAll = silenciar

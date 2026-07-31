@@ -171,10 +171,15 @@ export function CordasAtivas({
   )
 }
 
+/** Título de painel no formato do site: prompt de terminal, comando em seguida. */
 export function Painel({ children, titulo }: { children: ReactNode; titulo?: string }) {
   return (
     <section className="painel">
-      {titulo && <h2 className="painel__titulo">{titulo}</h2>}
+      {titulo && (
+        <h2 className="painel__titulo">
+          <span className="ps1">baiana:~$</span> {titulo.toLowerCase()}
+        </h2>
+      )}
       {children}
     </section>
   )

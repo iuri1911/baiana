@@ -55,7 +55,10 @@ function buildBuffer(audio: AudioContext, midi: number): AudioBuffer {
     y[i] = anterior
   }
 
-  const decay = 0.5 * (0.9995 - Math.min(0.004, (midi - 48) * 0.00012))
+  // o ganho do laco tem que ficar abaixo de 0,5: em 0,5 a corda nunca morre, e
+  // acima disso ela cresce sozinha ate estourar. Afinacao grave (Dó2) chegava la.
+  const brilho = Math.min(0.004, Math.max(0, (midi - 48) * 0.00012))
+  const decay = 0.5 * (0.9995 - brilho)
   for (let i = delay; i < len; i++) {
     y[i] = (y[i - delay] + y[i - delay - 1 < 0 ? 0 : i - delay - 1]) * decay
   }

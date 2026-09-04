@@ -67,7 +67,15 @@ export function Fretboard({
   const ativa = (s: number) => !activeStrings || activeStrings.includes(s)
   const pronto = width > 40 && height > 40
 
-  const raio = Math.max(9, Math.min(L.step * 0.42, 26))
+  // O disco tem que caber nos DOIS sentidos. So o espacamento entre cordas nao
+  // basta: no braço em pe, uma janela de muitas casas deixa a casa mais estreita
+  // que o diametro, e as notas de casas vizinhas se empilham umas sobre as
+  // outras. A casa mais apertada da janela e quem manda.
+  const menorCasa = casas.reduce((menor, f) => {
+    const [a, b] = L.cellSpan(f)
+    return Math.min(menor, Math.abs(b - a))
+  }, Number.POSITIVE_INFINITY)
+  const raio = Math.max(9, Math.min(L.step * 0.42, menorCasa * 0.45, 26))
   const fonte = raio * 0.86
 
   return (

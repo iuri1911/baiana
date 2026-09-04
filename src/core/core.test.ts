@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { pitchClass, octaveOf, noteName, frequency, degreeOf, interval } from './music'
+import { pitchClass, octaveOf, noteName, frequency, midiFromFrequency, degreeOf, interval } from './music'
 import { PRESETS, DEFAULT_INSTRUMENT, isRegular, stringStep, transpose, stringNames } from './tuning'
 import {
   midiAt,
@@ -35,6 +35,30 @@ describe('music', () => {
     expect(frequency(69)).toBeCloseTo(440, 6)
     expect(frequency(48)).toBeCloseTo(130.813, 3)
     expect(frequency(81)).toBeCloseTo(880, 6)
+  })
+
+  it('volta da frequência para o semitom, com os cents', () => {
+    // as cinco cordas soltas, ida e volta
+    for (const m of baiana.strings) {
+      const d = midiFromFrequency(frequency(m))!
+      expect(d.midi).toBe(m)
+      expect(d.cents).toBeCloseTo(0, 6)
+    }
+  })
+
+  it('mede o desvio em cents com sinal', () => {
+    // meio semitom acima do Lá4 fica a 50 cents, e ainda arredonda para o Lá
+    expect(midiFromFrequency(frequency(69) * Math.pow(2, 0.4 / 12))!).toEqual({
+      midi: 69,
+      cents: expect.closeTo(40, 6),
+    })
+    expect(midiFromFrequency(frequency(69) * Math.pow(2, -0.4 / 12))!.cents).toBeCloseTo(-40, 6)
+  })
+
+  it('quadro sem som não é nota', () => {
+    expect(midiFromFrequency(0)).toBeNull()
+    expect(midiFromFrequency(-1)).toBeNull()
+    expect(midiFromFrequency(Number.NaN)).toBeNull()
   })
 
   it('classe de altura funciona com negativo', () => {

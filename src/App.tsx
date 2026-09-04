@@ -2,18 +2,20 @@ import { useEffect, useState } from 'react'
 import { FreeBoard } from './features/FreeBoard'
 import { Drill } from './features/drill/Drill'
 import { ShapesView } from './features/ShapesView'
+import { Shred } from './features/shred/Shred'
 import { ProgressView } from './features/ProgressView'
 import { SettingsView } from './features/SettingsView'
 import { Calibration } from './features/Calibration'
 import { setCorteAutomatico, unlockAudio } from './audio/engine'
 import { useSettings } from './store/settings'
 
-type Aba = 'braco' | 'treino' | 'formas' | 'progresso' | 'ajustes'
+type Aba = 'braco' | 'treino' | 'formas' | 'tocar' | 'progresso' | 'ajustes'
 
 const ABAS: { id: Aba; rotulo: string; icone: string }[] = [
   { id: 'braco', rotulo: 'Braço', icone: '𝄞' },
   { id: 'treino', rotulo: 'Treino', icone: '◎' },
   { id: 'formas', rotulo: 'Formas', icone: '⋰' },
+  { id: 'tocar', rotulo: 'Tocar', icone: '♬' },
   { id: 'progresso', rotulo: 'Mapa', icone: '▦' },
   { id: 'ajustes', rotulo: 'Ajustes', icone: '⚙' },
 ]
@@ -39,6 +41,7 @@ export default function App() {
         {aba === 'braco' && <FreeBoard />}
         {aba === 'treino' && <Drill />}
         {aba === 'formas' && <ShapesView />}
+        {aba === 'tocar' && <Shred />}
         {aba === 'progresso' && <ProgressView />}
         {aba === 'ajustes' && <SettingsView />}
       </main>

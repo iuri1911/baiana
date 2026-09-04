@@ -50,6 +50,28 @@ export function frequency(midi: number, a4 = 440): number {
   return a4 * Math.pow(2, (midi - 69) / 12)
 }
 
+export interface Detected {
+  /** Semitom mais proximo. */
+  midi: number
+  /** Distancia ate ele, -50..50. Negativo e bemol. */
+  cents: number
+}
+
+/**
+ * Inversa de `frequency`: de volta ao semitom, guardando o desvio.
+ *
+ * Os cents importam porque corda pinçada nao entrega altura exata — ataque puxa
+ * agudo, corda velha puxa grave — e quem consome precisa poder decidir se
+ * aceita. Frequencia nao positiva nao e nota: acontece em quadro de silencio,
+ * e o log de Math.log2 devolveria -Infinity.
+ */
+export function midiFromFrequency(freq: number, a4 = 440): Detected | null {
+  if (!(freq > 0)) return null
+  const exato = 69 + 12 * Math.log2(freq / a4)
+  const midi = Math.round(exato)
+  return { midi, cents: (exato - midi) * 100 }
+}
+
 /** Toda nota preta e ambigua; a lista de nomes cobre so o que a UI precisa. */
 export function isAccidental(midi: number): boolean {
   return [1, 3, 6, 8, 10].includes(pitchClass(midi))

@@ -42,6 +42,22 @@ export function audioReady(): boolean {
   return ctx !== null && ctx.state === 'running'
 }
 
+/**
+ * O contexto, para quem precisa agendar no mesmo relogio.
+ *
+ * O metronomo e a captacao do microfone TEM que viver aqui dentro: a avaliacao
+ * compara o instante do clique com o instante da nota tocada, e dois contextos
+ * dariam duas linhas do tempo que so por acaso batem.
+ */
+export function audioContext(): AudioContext {
+  unlockAudio()
+  return ctx as AudioContext
+}
+
+export function masterBus(): GainNode | null {
+  return master
+}
+
 function buildBuffer(audio: AudioContext, midi: number): AudioBuffer {
   const sr = audio.sampleRate
   const freq = frequency(midi)

@@ -29,13 +29,19 @@ export function MicCheck({
   const [medindo, setMedindo] = useState(false)
   const micRef = useRef<Mic | null>(null)
   const picoRef = useRef(0)
+  const timerRef = useRef<number | undefined>(undefined)
+  const [abrindo, setAbrindo] = useState(false)
 
   useEffect(() => {
-    return () => micRef.current?.stop()
+    return () => {
+      micRef.current?.stop()
+      window.clearTimeout(timerRef.current)
+    }
   }, [])
 
   const ligar = async () => {
     setErro(null)
+    setAbrindo(true)
     const mic = (micRef.current ??= new Mic({
       onFrame: (f) => {
         setQuadro(f)
@@ -46,11 +52,14 @@ export function MicCheck({
       await mic.start()
       setLigado(true)
     } catch (e) {
+      if ((e as Error).name === 'AbortError') return
       setErro(
         (e as Error).name === 'NotAllowedError'
           ? 'Permissão de microfone negada. Libere nas configurações do navegador e tente de novo.'
           : `Não consegui abrir o microfone: ${(e as Error).message}`,
       )
+    } finally {
+      setAbrindo(false)
     }
   }
 
@@ -58,7 +67,7 @@ export function MicCheck({
   const medirRuido = () => {
     picoRef.current = 0
     setMedindo(true)
-    window.setTimeout(() => {
+    timerRef.current = window.setTimeout(() => {
       // Folga de 60%: o piso tem que ficar acima do ruído de fundo, senão o ar
       // condicionado vira ataque. Mínimo para microfone bom não zerar.
       onNoiseFloor(Math.max(0.004, picoRef.current * 1.6))
@@ -81,8 +90,8 @@ export function MicCheck({
 
         {!ligado ? (
           <>
-            <button type="button" className="botao botao--principal" onClick={ligar}>
-              Ligar o microfone
+            <button type="button" className="botao botao--principal" onClick={ligar} disabled={abrindo}>
+              {abrindo ? 'aguardando permissão…' : 'Ligar o microfone'}
             </button>
             {erro && <p className="erro">{erro}</p>}
           </>
@@ -129,7 +138,7 @@ export function MicCheck({
               {medindo ? 'medindo, não toque nada…' : 'Medir o silêncio (2 s)'}
             </button>
 
-            <button type="button" className="botao botao--principal" onClick={onPronto}>
+            <button type="button" className="botao botao--principal" onClick={onPronto} disabled={medindo}>
               Está ouvindo certo, pode seguir
             </button>
           </>

@@ -95,7 +95,7 @@ de silêncio corta o som do navegador.
 
 ```bash
 npm install
-npm run dev -- --host   # abre no celular pelo IP da máquina
+npm run dev             # teste local em http://localhost:5173/baiana/
 npm test                # núcleo musical, geometria do braço e fumaça do app
 npm run build && npm run preview
 node scripts/gerar-icones.mjs   # regera os PNG do ícone, sem dependência externa
@@ -110,3 +110,23 @@ braço e é usado por todas as telas. O worklet mora em `public/pitch-worklet.js
 porque worklet de áudio é carregado por URL e não aceita `import`.
 
 Publicação: Action do GitHub para Pages a cada push na `main`.
+
+## Testar o treino por áudio
+
+Abra https://iuri1911.github.io/baiana/ no celular ou computador. O acesso pelo
+IP do servidor em HTTP não libera o microfone; use o link HTTPS publicado.
+
+1. Confira a oitava do instrumento e entre em **Tocar**.
+2. Ligue o microfone, autorize o navegador e toque uma corda solta por vez.
+3. Meça o silêncio da sala e confirme que as notas aparecem corretamente.
+4. Para começar, escolha **Maior** (arpejo), tônica Dó, uma oitava, direção
+   ascendente, colcheias e 60 BPM. Use **ouvir a forma** para escutar o exercício.
+5. Toque **Começar**, espere a contagem e execute uma nota por vez, com fones.
+   O veredito apresenta acertos, notas que faltaram ou sobraram e regularidade.
+6. **Parar** encerra também a captura. Use **Conferir o microfone novamente**
+   para refazer a calibração quando mudar de aparelho ou ambiente.
+
+Validação de setembro de 2026: 135 testes automatizados, compilação e teste de
+navegação em Chromium na largura de celular com microfone simulado. A precisão
+com a guitarra baiana real e a compatibilidade em Safari/iPhone precisam ser
+conferidas no aparelho; o teste simulado não substitui essa etapa.

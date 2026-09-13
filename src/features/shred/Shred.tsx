@@ -49,7 +49,7 @@ const GRACE_BEATS = 0.25
 const ACCEL_REPS = 8
 const BEATS_PER_BAR = 4
 
-type Fase = 'parado' | 'contagem' | 'tocando' | 'descanso' | 'demo'
+type Fase = 'abrindo' | 'parado' | 'contagem' | 'tocando' | 'descanso' | 'demo'
 
 /** Lista curta de alturas, sem despejar sessenta nomes na barra. */
 function nomes(midis: number[], opts: Parameters<typeof noteName>[1]): string {
@@ -345,6 +345,7 @@ export function Shred() {
       await t.start({ bpm, beatsPerBar: BEATS_PER_BAR, countInBars: 1 })
     } catch (e) {
       setFase('parado')
+      micRef.current?.stop()
       setErro(`Não consegui iniciar o áudio: ${(e as Error).message}`)
     }
   }, [])
@@ -354,6 +355,8 @@ export function Shred() {
     demoRef.current = false
     setAnuncio(null)
     transportRef.current?.stop()
+    micRef.current?.stop()
+    setOuvida(null)
     for (const t of timersRef.current) clearTimeout(t)
     timersRef.current = []
     setFase('parado')
@@ -378,15 +381,19 @@ export function Shred() {
     } catch (e) {
       demoRef.current = false
       setFase('parado')
+      micRef.current?.stop()
       setErro(`Não consegui iniciar o áudio: ${(e as Error).message}`)
     }
   }, [handleBeat, cfg.clickVolume, ramp.bpm])
 
   const start = useCallback(async () => {
     setErro(null)
+    setFase('abrindo')
     try {
       await ensureMic()
     } catch (e) {
+      if ((e as Error).name === 'AbortError') return
+      setFase('parado')
       setErro(
         (e as Error).name === 'NotAllowedError'
           ? 'Sem permissão de microfone não dá para avaliar. Libere e tente de novo.'
@@ -416,6 +423,7 @@ export function Shred() {
       })
     } catch (e) {
       setFase('parado')
+      micRef.current?.stop()
       setErro(`Não consegui iniciar o áudio: ${(e as Error).message}`)
     }
   }, [ensureMic, handleBeat, cfg.clickVolume, ramp.bpm])
@@ -436,7 +444,7 @@ export function Shred() {
     setHistorico([])
     // Trocar de forma zera a escada: o BPM de uma nao vale para a outra.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cfg.shapeId, cfg.rootPc, cfg.octaves, cfg.direction, cfg.subdivision])
+  }, [cfg.shapeId, cfg.rootPc, cfg.octaves, cfg.direction, cfg.subdivision, cfg.mode])
 
   const setTempo = useCallback(
     (bpm: number) => {
@@ -565,6 +573,12 @@ export function Shred() {
           é ver o braço e alcançar o Parar, não o seletor de tônica. */}
       <div className="tela__painel">
         <Painel titulo="Treino por áudio">
+          <button type="button" className="botao" onClick={() => {
+            stop()
+            persist({ micOk: false })
+          }}>
+            Conferir o microfone novamente
+          </button>
           <Segmentado
             titulo="Forma"
             valor={cfg.shapeId}
@@ -717,6 +731,7 @@ export function Shred() {
         {erro && <p className="erro">{erro}</p>}
 
         <Painel titulo="Veredito">
+          {fase === 'abrindo' && <p className="dica">aguardando o microfone…</p>}
           {fase === 'demo' && <p className="dica">tocando a forma — só escute</p>}
           {fase === 'contagem' && <p className="dica">contando…</p>}
           {fase === 'descanso' && <p className="dica">descanso — solte a mão</p>}

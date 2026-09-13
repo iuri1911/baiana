@@ -46,6 +46,8 @@ export class Mic {
   private offsetMs = 0
   /** Atraso do caminho de entrada, subtraido de todo instante. */
   private latencyMs = 0
+  private generation = 0
+  private starting: Promise<void> | null = null
 
   constructor(opts: MicOptions = {}) {
     this.opts = opts
@@ -78,33 +80,59 @@ export class Mic {
    * automatico mexeria no volume no meio do exercicio e faria a medida de
    * ataque mentir.
    */
-  async start(): Promise<void> {
-    if (this.node) return
-
-    this.stream = await navigator.mediaDevices.getUserMedia({
-      audio: {
-        echoCancellation: false,
-        noiseSuppression: false,
-        autoGainControl: false,
-      },
+  start(): Promise<void> {
+    if (this.node) return Promise.resolve()
+    if (this.starting) return this.starting
+    const generation = ++this.generation
+    const pending = this.open(generation).finally(() => {
+      if (this.starting === pending) this.starting = null
     })
+    this.starting = pending
+    return pending
+  }
 
+  private async open(generation: number): Promise<void> {
+    if (!globalThis.isSecureContext) {
+      throw new Error('Abra o Baiana pelo link HTTPS para usar o microfone no celular.')
+    }
+    if (!navigator.mediaDevices?.getUserMedia) {
+      throw new Error('Este navegador não oferece acesso ao microfone. Abra no Safari ou Chrome.')
+    }
+    // Desbloqueia o áudio ainda no toque, antes da espera pela permissão.
     const ctx = audioContext()
     this.ctx = ctx
-    if (ctx.state === 'suspended') await ctx.resume()
-    await ctx.audioWorklet.addModule(WORKLET_URL)
-
-    this.detector = PitchDetector.forFloat32Array(2048)
-    this.source = ctx.createMediaStreamSource(this.stream)
-    this.node = new AudioWorkletNode(ctx, 'pitch-frames')
-    this.node.port.onmessage = (e) => this.onHop(e.data)
-
-    // O worklet nao produz saida: ligar na saida devolveria o microfone para as
-    // caixas, que e microfonia na certa.
-    this.source.connect(this.node)
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          echoCancellation: false,
+          noiseSuppression: false,
+          autoGainControl: false,
+        },
+      })
+      if (generation !== this.generation) {
+        stream.getTracks().forEach((track) => track.stop())
+        throw new DOMException('Abertura cancelada.', 'AbortError')
+      }
+      this.stream = stream
+      if (ctx.state === 'suspended') await ctx.resume()
+      await ctx.audioWorklet.addModule(WORKLET_URL)
+      if (generation !== this.generation) {
+        throw new DOMException('Abertura cancelada.', 'AbortError')
+      }
+      this.detector = PitchDetector.forFloat32Array(2048)
+      this.source = ctx.createMediaStreamSource(stream)
+      this.node = new AudioWorkletNode(ctx, 'pitch-frames')
+      this.node.port.onmessage = (e) => this.onHop(e.data)
+      this.source.connect(this.node)
+    } catch (error) {
+      if (generation === this.generation) this.stop()
+      throw error
+    }
   }
 
   stop(): void {
+    this.generation++
+    this.starting = null
     this.node?.port.close()
     this.node?.disconnect()
     this.source?.disconnect()
@@ -112,6 +140,9 @@ export class Mic {
     this.node = null
     this.source = null
     this.stream = null
+    this.detector = null
+    this.ctx = null
+    this.offsetMs = 0
     this.tracker.reset()
   }
 

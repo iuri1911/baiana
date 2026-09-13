@@ -35,7 +35,7 @@ export const PADRAO: Settings = {
   lang: 'pt',
   accidental: 'sharp',
   lowFirst: true,
-  orientation: 'auto',
+  orientation: 'horizontal',
   zone: { from: 0, to: 7 },
   som: true,
   sustentar: false,
@@ -109,16 +109,7 @@ export function aplicarPreset(id: string): Partial<Settings> {
   }
 }
 
+/** O braço mantém a leitura da esquerda para a direita em qualquer tela. */
 export function useOrientation(): Orientation {
-  const { cfg } = useSettings()
-  const [auto, setAuto] = useState<Orientation>(() =>
-    typeof window !== 'undefined' && window.innerWidth > window.innerHeight * 1.15 ? 'horizontal' : 'vertical',
-  )
-  useEffect(() => {
-    const ler = () => setAuto(window.innerWidth > window.innerHeight * 1.15 ? 'horizontal' : 'vertical')
-    window.addEventListener('resize', ler)
-    ler()
-    return () => window.removeEventListener('resize', ler)
-  }, [])
-  return cfg.orientation === 'auto' ? auto : cfg.orientation
+  return 'horizontal'
 }

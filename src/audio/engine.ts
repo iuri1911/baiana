@@ -102,6 +102,8 @@ function bufferFor(audio: AudioContext, midi: number): AudioBuffer {
 }
 
 export interface PluckOptions {
+  /** Duração da nota na demonstração, em segundos. */
+  duration?: number
   /** Segundos a partir de agora. */
   delay?: number
   gain?: number
@@ -146,8 +148,18 @@ export function pluck(midi: number, opts: PluckOptions = {}): void {
   src.buffer = bufferFor(ctx, midi)
   const g = ctx.createGain()
   g.gain.value = gain
+  const at = ctx.currentTime + Math.max(0, delay)
+  let stopAt: number | undefined
+  if (opts.duration !== undefined) {
+    const end = at + Math.max(0.04, opts.duration)
+    g.gain.setValueAtTime(gain, at)
+    g.gain.setValueAtTime(gain, Math.max(at, end - 0.025))
+    g.gain.linearRampToValueAtTime(0, end)
+    stopAt = end + 0.01
+  }
   src.connect(g).connect(master)
-  src.start(ctx.currentTime + delay)
+  src.start(at)
+  if (stopAt !== undefined) src.stop(stopAt)
   const voz = { src, gain: g }
   live.push(voz)
   src.onended = () => {

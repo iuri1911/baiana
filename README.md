@@ -23,7 +23,7 @@ Roda no navegador, instala como app no celular e funciona offline.
   reprovadas descem. Detalhes abaixo.
 - **Mapa** — o braço colorido pelo que você acerta, para saber o que treinar.
 - **Ajustes** — afinação corda a corda, número de trastes, marcadores de casa,
-  nomes em Dó Ré Mi ou C D E, braço em pé ou deitado.
+  nomes em Dó Ré Mi ou C D E, braço horizontal em todas as telas.
 
 Nada sai do aparelho: configuração e progresso ficam no `localStorage`, com
 exportar e importar em JSON.
@@ -120,13 +120,27 @@ IP do servidor em HTTP não libera o microfone; use o link HTTPS publicado.
 2. Ligue o microfone, autorize o navegador e toque uma corda solta por vez.
 3. Meça o silêncio da sala e confirme que as notas aparecem corretamente.
 4. Para começar, escolha **Maior** (arpejo), tônica Dó, uma oitava, direção
-   ascendente, colcheias e 60 BPM. Use **ouvir a forma** para escutar o exercício.
+   ascendente, colcheias e 60 BPM. Use **Ouvir exercício** para escutar o exercício.
 5. Toque **Começar**, espere a contagem e execute uma nota por vez, com fones.
    O veredito apresenta acertos, notas que faltaram ou sobraram e regularidade.
 6. **Parar** encerra também a captura. Use **Conferir o microfone novamente**
    para refazer a calibração quando mudar de aparelho ou ambiente.
 
-Validação de setembro de 2026: 135 testes automatizados, compilação e teste de
+Validação de setembro de 2026: 138 testes automatizados, compilação e teste de
 navegação em Chromium na largura de celular com microfone simulado. A precisão
 com a guitarra baiana real e a compatibilidade em Safari/iPhone precisam ser
 conferidas no aparelho; o teste simulado não substitui essa etapa.
+
+### Exemplo antes de tocar e registros
+
+**Começar** toca uma demonstração completa antes dos quatro cliques de entrada.
+A demonstração não entra na avaliação. **Ouvir exercício** repete somente o
+exemplo. A sequência mostra nota, corda e casa, com destaque sincronizado.
+Os atalhos de Dó maior e Lá menor preparam arpejos de uma oitava a 60 BPM.
+
+**Registro da sessão → Exportar registros** baixa um JSON com as últimas três
+sessões locais, incluindo configuração, notas esperadas e detectadas, tempos,
+vereditos e uma amostra por segundo do nível/confiança da entrada. Não grava
+áudio nem envia dados automaticamente. Envie o arquivo no chat para análise.
+Sessões longas preservam os últimos 2.500 eventos e informam quantos foram
+removidos. Parar, sair da aba ou ocultar o navegador salva o registro.

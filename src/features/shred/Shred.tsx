@@ -38,6 +38,8 @@ import {
 } from '../../shred/ramp'
 import { Mic } from '../../shred/pitch/mic'
 import { MicCheck } from './MicCheck'
+import { silenciar } from '../../audio/engine'
+import { SessionRecorder, loadSessions, exportSessions } from '../../shred/sessionLog'
 
 /**
  * Folga em cada ponta da repeticao, como fracao de tempo. Fracao e nao ms fixos:
@@ -81,6 +83,24 @@ export function Shred() {
   const [anuncio, setAnuncio] = useState<string | null>(null)
   /** Ultima nota ouvida, para o braço reagir enquanto voce toca. */
   const [ouvida, setOuvida] = useState<number | null>(null)
+  const [notaAtual, setNotaAtual] = useState<number | null>(null)
+  const [contagem, setContagem] = useState(0)
+  const [logs, setLogs] = useState(loadSessions)
+  const [logErro, setLogErro] = useState(false)
+  const recorder = useRef(new SessionRecorder())
+  const sessionActive = useRef(false)
+  const autoPractice = useRef(false)
+  const lastFrameLog = useRef(0)
+  const sequenceRef = useRef<HTMLDivElement>(null)
+  const saveLog = useCallback(() => {
+    setLogErro(!recorder.current.save())
+    setLogs(loadSessions())
+  }, [])
+  useEffect(() => {
+    const row = sequenceRef.current
+    const item = row?.children[notaAtual ?? -1] as HTMLElement | undefined
+    if (row && item) row.scrollLeft = item.offsetLeft - row.offsetLeft - row.clientWidth / 2
+  }, [notaAtual])
 
   const shape = findShape(cfg.shapeId) ?? SCALES[0]
   const [ramp, setRamp] = useState(() => newRamp(cfg.bpm))
@@ -144,6 +164,7 @@ export function Shred() {
     rootPc: cfg.rootPc,
     guide: cfg.guide,
     guideVolume: cfg.guideVolume,
+    subdivision: cfg.subdivision,
   })
   cfgRef.current = {
     expansion,
@@ -156,6 +177,7 @@ export function Shred() {
     rootPc: cfg.rootPc,
     guide: cfg.guide,
     guideVolume: cfg.guideVolume,
+    subdivision: cfg.subdivision,
   }
 
   const later = (fn: () => void, delayMs: number) => {
@@ -216,6 +238,12 @@ export function Shred() {
         expectedMsAt: localMsAt,
       })
       setVeredito(g)
+      recorder.current.add('repetition', {
+        repetition: r, bpm, originMs: repStart,
+        expected: c.expansion.notes.map((n) => ({ ...n, onTime: repStart + localMsAt(n.beat) })),
+        played: notas, verdict: g,
+      })
+      saveLog()
 
       // Repeticao sem nada tocado nao e falha de execucao: nao entra na sessao,
       // nao vira estatistica e, principalmente, nao baixa o andamento.
@@ -241,7 +269,7 @@ export function Shred() {
       playedRef.current = playedRef.current.filter((n) => n.onTime >= fim)
       micRef.current?.reset()
     },
-    [perfAtBeat],
+    [perfAtBeat, saveLog],
   )
 
   /** Toca as notas do exercicio que caem no proximo tempo. */
@@ -253,7 +281,7 @@ export function Shred() {
     const local = ((b.index % c.cycleBeats) + c.cycleBeats) % c.cycleBeats
     for (const n of c.expansion.notes) {
       if (n.beat >= local && n.beat < local + 1) {
-        t.note(n.midi, b.audioTime + (n.beat - local) * porTempo, gain)
+        t.note(n.midi, b.audioTime + (n.beat - local) * porTempo, gain, porTempo / c.subdivision * 0.9)
       }
     }
   }, [])
@@ -269,9 +297,35 @@ export function Shred() {
       const c = cfgRef.current
       const atraso = b.perfTime - performance.now()
 
+      if (demoRef.current && b.index >= c.repBeats) {
+        later(() => {
+          silenciar()
+          setNotaAtual(null)
+          if (autoPractice.current) {
+            autoPractice.current = false
+            demoRef.current = false
+            recorder.current.add('practice-count-in', {})
+            void restartAtTempoRef.current(rampRef.current.bpm)
+          } else stopRef.current()
+        }, atraso)
+        return
+      }
+
+      if (b.index < 0) {
+        later(() => setContagem(b.beatInBar + 1), atraso)
+      } else {
+        const local = b.index % c.cycleBeats
+        const beatMs = 60000 / (transportRef.current?.currentBpm ?? 60)
+        for (const [index, n] of c.expansion.notes.entries()) {
+          if (n.beat >= local && n.beat < local + 1) {
+            later(() => setNotaAtual(index), atraso + (n.beat - local) * beatMs)
+            later(() => setNotaAtual(null), atraso + (n.beat - local + 0.9 / c.subdivision) * beatMs)
+          }
+        }
+      }
+
       if (demoRef.current) {
-        scheduleGuide(b, c.guideVolume)
-        if (b.index >= c.repBeats) later(() => stopRef.current(), atraso)
+        scheduleGuide(b, Math.max(0.3, c.guideVolume))
         return
       }
 
@@ -314,7 +368,16 @@ export function Shred() {
     const baixo = inst.strings[0]
     const alto = inst.strings[inst.strings.length - 1] + inst.frets
     const mic = (micRef.current ??= new Mic({
+      onFrame: (frame) => {
+        const now = performance.now()
+        if (sessionActive.current && !demoRef.current && now - lastFrameLog.current >= 1000) {
+          recorder.current.add('input', frame)
+          lastFrameLog.current = now
+        }
+      },
       onNote: (n) => {
+        if (demoRef.current) return
+        recorder.current.add('note', n)
         playedRef.current.push(n)
         if (playedRef.current.length > 2000) playedRef.current.splice(0, 1000)
         setOuvida(n.midi)
@@ -340,19 +403,31 @@ export function Shred() {
     playedRef.current = []
     beatsRef.current = []
     micRef.current?.reset()
+    setNotaAtual(null)
+    setContagem(0)
     setFase('contagem')
     try {
       await t.start({ bpm, beatsPerBar: BEATS_PER_BAR, countInBars: 1 })
     } catch (e) {
       setFase('parado')
       micRef.current?.stop()
+      recorder.current.add('error', { name: (e as Error).name, message: (e as Error).message })
+      saveLog()
       setErro(`Não consegui iniciar o áudio: ${(e as Error).message}`)
     }
-  }, [])
+  }, [saveLog])
   restartAtTempoRef.current = restartAtTempo
 
   const stop = useCallback(() => {
+    if (sessionActive.current) {
+      recorder.current.add('stop', {})
+      saveLog()
+      sessionActive.current = false
+    }
+    autoPractice.current = false
     demoRef.current = false
+    setNotaAtual(null)
+    silenciar()
     setAnuncio(null)
     transportRef.current?.stop()
     micRef.current?.stop()
@@ -360,7 +435,7 @@ export function Shred() {
     for (const t of timersRef.current) clearTimeout(t)
     timersRef.current = []
     setFase('parado')
-  }, [])
+  }, [saveLog])
   stopRef.current = stop
 
   const listen = useCallback(async () => {
@@ -368,7 +443,10 @@ export function Shred() {
     const t = (transportRef.current ??= new Transport())
     t.onBeat = handleBeat
     t.setVolume(cfg.clickVolume)
+    autoPractice.current = false
     demoRef.current = true
+    setNotaAtual(null)
+    setContagem(0)
     beatsRef.current = []
     setVeredito(null)
     setFase('demo')
@@ -376,23 +454,30 @@ export function Shred() {
       await t.start({
         bpm: ramp.bpm,
         beatsPerBar: BEATS_PER_BAR,
-        countInBars: 1,
+        countInBars: 0,
       })
     } catch (e) {
       demoRef.current = false
       setFase('parado')
       micRef.current?.stop()
+      recorder.current.add('error', { name: (e as Error).name, message: (e as Error).message })
+      saveLog()
       setErro(`Não consegui iniciar o áudio: ${(e as Error).message}`)
     }
-  }, [handleBeat, cfg.clickVolume, ramp.bpm])
+  }, [handleBeat, cfg.clickVolume, ramp.bpm, saveLog])
 
   const start = useCallback(async () => {
+    recorder.current.begin({ settings: cfg, instrument: inst, bpm: ramp.bpm, expected: expansion.notes })
+    sessionActive.current = true
+    saveLog()
     setErro(null)
     setFase('abrindo')
     try {
       await ensureMic()
     } catch (e) {
       if ((e as Error).name === 'AbortError') return
+      recorder.current.add('error', { name: (e as Error).name, message: (e as Error).message })
+      saveLog()
       setFase('parado')
       setErro(
         (e as Error).name === 'NotAllowedError'
@@ -411,22 +496,28 @@ export function Shred() {
     micRef.current?.reset()
     setVeredito(null)
     setHistorico([])
-    demoRef.current = false
+    demoRef.current = true
+    autoPractice.current = true
+    recorder.current.add('demonstration', {})
+    setNotaAtual(null)
+    setContagem(0)
     setAnuncio(null)
-    setFase('contagem')
+    setFase('demo')
 
     try {
       await t.start({
         bpm: ramp.bpm,
         beatsPerBar: BEATS_PER_BAR,
-        countInBars: 1,
+        countInBars: 0,
       })
     } catch (e) {
       setFase('parado')
       micRef.current?.stop()
+      recorder.current.add('error', { name: (e as Error).name, message: (e as Error).message })
+      saveLog()
       setErro(`Não consegui iniciar o áudio: ${(e as Error).message}`)
     }
-  }, [ensureMic, handleBeat, cfg.clickVolume, ramp.bpm])
+  }, [ensureMic, handleBeat, cfg, inst, expansion, ramp.bpm, saveLog])
 
   // Sair da aba ou trocar de forma no meio nao pode deixar o clique rodando.
   useEffect(
@@ -445,6 +536,12 @@ export function Shred() {
     // Trocar de forma zera a escada: o BPM de uma nao vale para a outra.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cfg.shapeId, cfg.rootPc, cfg.octaves, cfg.direction, cfg.subdivision, cfg.mode])
+
+  useEffect(() => {
+    const hidden = () => { if (document.hidden) stop() }
+    document.addEventListener('visibilitychange', hidden)
+    return () => document.removeEventListener('visibilitychange', hidden)
+  }, [stop])
 
   const setTempo = useCallback(
     (bpm: number) => {
@@ -519,8 +616,12 @@ export function Shred() {
         })
       }
     }
+    if (notaAtual !== null) {
+      const n = expansion.notes[notaAtual]
+      if (n?.pos) m.push({ pos: n.pos, label: String(notaAtual + 1), variant: 'alvo', pulsa: true })
+    }
     return m
-  }, [expansion, veredito, ouvida, fase, nameOpts])
+  }, [expansion, veredito, ouvida, fase, nameOpts, notaAtual])
 
   const alvos = rampTargets(ramp, rampConfig)
   const recorde = bestFor(stats, shape.id)
@@ -539,7 +640,7 @@ export function Shred() {
   }
 
   return (
-    <div className="tela">
+    <div className="tela tela--tocar">
       <div className="tela__braco">
         <Fretboard
           inst={inst}
@@ -550,12 +651,26 @@ export function Shred() {
           nameOptions={nameOpts}
         />
       </div>
-      {anuncio && <div className="anuncio">{anuncio}</div>}
+      <div className="execucao">
+        <strong role="status">
+          {fase === 'demo' ? (autoPractice.current ? 'Ouça o exemplo — depois é sua vez' : 'Ouça o exemplo') : fase === 'contagem' ? `Prepare-se: ${contagem || '…'} / 4` : fase === 'tocando' ? 'Sua vez — acompanhe as notas' : fase === 'descanso' ? 'Descanse um compasso' : fase === 'abrindo' ? 'Aguardando microfone…' : 'Primeiro ouça, depois toque'}
+        </strong>
+        <p className="dica">{shape.name} · {pitchClassName(cfg.rootPc, nameOpts)} · {ramp.bpm} BPM · {cfg.subdivision} notas por clique</p>
+        <div className="sequencia" ref={sequenceRef} aria-label="Sequência do exercício">
+          {expansion.notes.map((n, i) => (
+            <span key={i} className={notaAtual === i ? 'is-atual' : ''}>
+              {i + 1}. {noteName(n.midi, nameOpts)}
+              <small>{n.pos ? `${inst.strings.length - n.pos.string}ª corda · ${n.pos.fret === 0 ? 'solta' : `casa ${n.pos.fret}`}` : 'fora do braço'}</small>
+            </span>
+          ))}
+        </div>
+        {anuncio && <p className="dica">{anuncio}</p>}
+      </div>
       <div className="rodape-treino">
         {fase === 'parado' ? (
           <>
-            <button type="button" className="botao" onClick={listen}>
-              ouvir a forma
+            <button type="button" className="botao" onClick={() => void listen()}>
+              Ouvir exercício
             </button>
             <button type="button" className="botao botao--principal" onClick={start}>
               Começar
@@ -573,6 +688,11 @@ export function Shred() {
           é ver o braço e alcançar o Parar, não o seletor de tônica. */}
       <div className="tela__painel">
         <Painel titulo="Treino por áudio">
+          <p className="dica">Ao começar, o app toca uma volta de exemplo, conta quatro cliques e só então avalia você. A nota destacada indica a ordem; os números no braço são os graus da forma, e a nota ativa mostra seu número na sequência.</p>
+          <div className="botoes">
+            <button type="button" className="botao" onClick={() => { stop(); setRamp(newRamp(60)); persist({ shapeId: 'maj', rootPc: 0, octaves: 1, direction: 'updown', subdivision: 2, bpm: 60, mode: 'free' }) }}>Exemplo: arpejo de Dó</button>
+            <button type="button" className="botao" onClick={() => { stop(); setRamp(newRamp(60)); persist({ shapeId: 'min', rootPc: 9, octaves: 1, direction: 'updown', subdivision: 2, bpm: 60, mode: 'free' }) }}>Exemplo: arpejo de Lá menor</button>
+          </div>
           <button type="button" className="botao" onClick={() => {
             stop()
             persist({ micOk: false })
@@ -653,6 +773,18 @@ export function Shred() {
           />
         </Painel>
 
+        <Painel titulo="Registro da sessão">
+          <p className="dica">As últimas 3 sessões ficam neste aparelho: notas, tempos e avaliações, sem gravação de áudio. Exporte o registro e envie no chat para analisarmos.</p>
+          <button type="button" className="botao" disabled={!logs.length && !recorder.current.session} onClick={() => { saveLog(); exportSessions(recorder.current.session) }}>Exportar registros</button>
+          {logErro && <p className="erro">Não foi possível salvar o registro neste navegador.</p>}
+          <p className="dica">{logs.length} sessão(ões) salva(s).</p>
+          <div className="logs-resumo">
+            {logs.at(-1)?.events.filter((e) => e.type === 'repetition').slice(-5).map((event, i) => {
+              const data = event.data as { verdict: Grade; bpm: number }
+              return <p className="dica" key={i}>{Math.round(event.atMs / 1000)} s · {Math.round(data.bpm)} BPM · {Math.round(data.verdict.accuracy * 100)}% · {data.verdict.attempted ? data.verdict.passed ? 'limpa' : data.verdict.reasons.join(' · ') : 'sem notas'}</p>
+            })}
+          </div>
+        </Painel>
         <Painel titulo="Andamento">
           <div className="tempo-linha">
             <button type="button" className="botao" onClick={() => setTempo(ramp.bpm - 10)}>

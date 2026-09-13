@@ -134,19 +134,10 @@ export function SettingsView() {
           ]}
           onChange={(accidental) => set({ accidental })}
         />
-        <Segmentado
-          titulo="Orientação do braço"
-          valor={cfg.orientation}
-          opcoes={[
-            { valor: 'auto', rotulo: 'automática' },
-            { valor: 'vertical', rotulo: 'em pé' },
-            { valor: 'horizontal', rotulo: 'deitado' },
-          ]}
-          onChange={(orientation) => set({ orientation })}
-        />
+        <p className="dica">Braço sempre na horizontal, com as casas da esquerda para a direita.</p>
         <Alternar
           titulo="Corda grave do lado de cá"
-          dica="embaixo no braço deitado, à esquerda no braço em pé — como você vê o instrumento; desligue para espelhar"
+          dica="corda grave embaixo; desligue para espelhar"
           valor={cfg.lowFirst}
           onChange={(lowFirst) => set({ lowFirst })}
         />

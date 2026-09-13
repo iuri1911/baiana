@@ -183,10 +183,10 @@ export class Transport {
   }
 
   /** Nota sintetizada, para demonstrar o exercicio antes de voce tocar. */
-  note(midi: number, atAudio: number, gain = 0.5): void {
+  note(midi: number, atAudio: number, gain = 0.5, duration?: number): void {
     const ctx = this.ctx
     if (!ctx) return
-    pluck(midi, { delay: atAudio - ctx.currentTime, gain, corta: false })
+    pluck(midi, { delay: atAudio - ctx.currentTime, gain, corta: false, duration })
   }
 
   /**
